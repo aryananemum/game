@@ -136,6 +136,50 @@ def ai_move(grid):
             best_move = move
     return best_move
 
+
+####################
+# Human Move (L1)
+###NEW ADDITION (12/5/'24)
+def move_L_piece(grid, player):
+    """Handle moving an L piece for a player."""
+    print(f"\n{player}'s turn to move L piece")
+    legal_moves = generate_legal_moves(grid, player)
+    
+    print("Available moves:", legal_moves)
+    while True:
+        try:
+            row = int(input("Enter row (0-3): "))
+            col = int(input("Enter column (0-3): "))
+            if (row, col) in legal_moves:
+                return apply_move(grid, (row, col), player)
+            else:
+                print("Invalid move. Try again.")
+        except ValueError:
+            print("Please enter valid numbers.")
+
+# L2's turn (Neutral Piece)
+###NEW ADDITION (12/5/'24)
+####NEEDS MORE WORK
+def move_neutral_piece(grid, player):
+    print(f"\n{player}'s turn to move neutral piece")
+    nuetral = 'N1' if player == PLAYER_L1 else 'N2'
+    positions = find_positions(grid, nuetral)
+
+    while True:
+        try:
+            print("Current position:", positions[0])
+            row = int(input("Enter row (0-3): "))
+            col = int(input("Enter column (0-3): "))
+            if (row, col) in positions:
+                return apply_move(grid, (row, col), nuetral)
+            else:
+                print("Invalid move. Try again.")
+        except ValueError:
+            print("Please enter valid numbers.")
+
+
+
+
 # Play the game
 def play_game():
     """Main function to play the L game."""
@@ -177,6 +221,8 @@ def play_game():
             grid = apply_move(grid, ai_move_choice_2, PLAYER_L2)
     
     print("Game Over!")
+
+
 
 if __name__ == "__main__":
     play_game()
