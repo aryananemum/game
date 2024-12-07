@@ -1,0 +1,273 @@
+import copy
+import sys
+import random
+import itertools
+
+# Constants for the players
+PLAYER_L1 = 'L1'
+PLAYER_L2 = 'L2'
+NEUTRAL_PIECE_1 = 'N1'
+NEUTRAL_PIECE_2 = 'N2'
+
+# Initialize the board
+def initialize_board():
+    """Initialize the board with the starting pieces."""
+    grid = [
+        ['N1','L1', 'L1', '.'],
+        ['.', 'L2', 'L1', '.'],
+    [ '.', 'L2', 'L1', '.'],
+        [ '.', 'L2', 'L2', 'N2']
+    ]
+    return grid
+
+# Print the current board state
+def print_board(grid):
+    """Print the current board state."""
+    for row in grid:
+        print(" ".join(row))
+
+# Find all positions of a given piece on the board
+def find_positions(grid, piece):
+    """Find all positions of the given piece on the board."""
+    positions = []
+    for r in range(len(grid)):
+        for c in range(len(grid[r])):
+            if grid[r][c] == piece:
+                positions.append((r, c))
+    return positions
+
+# Generate legal moves for the player's L piece
+def generate_legal_moves(grid, player):
+    """Generate a list of legal moves for any L piece of the given player."""
+    legal_moves = []
+    
+    # Define the possible moves for an L piece
+    possible_moves = [
+        (1, 0), (-1, 0), (0, 1), (0, -1)  # Move right, left, up, down
+    ]
+    
+    for row in range(4):  # Assuming a 4x4 grid
+        for col in range(4):
+            if grid[row][col] == player:  # Found an L piece
+                for dr, dc in possible_moves:
+                    new_row, new_col = row + dr, col + dc
+                    if 0 <= new_row < 4 and 0 <= new_col < 4:  # Ensure the move is within bounds
+                        legal_moves.append((new_row, new_col))
+    
+    return legal_moves
+
+# Check if the game is over
+def game_over(grid):
+    """Check if the game is over (the opponent has no legal moves)."""
+    l1_moves = generate_legal_moves(grid, PLAYER_L1)
+    l2_moves = generate_legal_moves(grid, PLAYER_L2)
+    
+    if not l1_moves:
+        print("L2 wins! L1 has no moves left.")
+        return True
+    elif not l2_moves:
+        print("L1 wins! L2 has no moves left.")
+        return True
+    
+    return False
+
+# Apply a move to the grid
+def apply_move(grid, move, player):
+    """Apply a move to the grid and return the new grid."""
+    l_piece = 'L1' if player == PLAYER_L1 else 'L2'
+    oldpositions = find_positions(grid, l_piece)
+
+    for r,c in oldpositions:
+        grid [r][c]= '.'
+
+    for r,c in move:
+        grid [r][c]= l_piece
+
+    return grid
+
+
+# Heuristic evaluation function
+def heuristic_evaluation(grid):
+    """Evaluate the board state for minimax."""
+    score = 0
+    for row in grid:
+        for cell in row:
+            if cell == 'L1':
+                score += 1  # L1 gets a positive score
+            elif cell == 'L2':
+                score -= 1  # L2 gets a negative score
+    return score
+
+# Minimax with Alpha-Beta Pruning
+def minimax(grid, depth, maximizing_player, alpha, beta):
+    """Run the minimax algorithm with alpha-beta pruning."""
+    if depth == 0 or game_over(grid):
+        return heuristic_evaluation(grid)
+    
+    if maximizing_player:
+        max_eval = float('-inf')
+        legal_moves = generate_legal_moves(grid, PLAYER_L1)  # L1 moves
+        for move in legal_moves:
+            new_grid = copy.deepcopy(grid)
+            new_grid = apply_move(new_grid, (move[0], move[1], move[2], move[3]), PLAYER_L1)
+            eval = minimax(new_grid, depth - 1, False, alpha, beta)
+            max_eval = max(max_eval, eval)
+            alpha = max(alpha, eval)
+            if beta <= alpha:
+                break  # Prune the branch
+        return max_eval
+    else:
+        min_eval = float('inf')
+        legal_moves = generate_legal_moves(grid, PLAYER_L2)  # L2 moves
+        for move in legal_moves:
+            new_grid = copy.deepcopy(grid)
+            new_grid = apply_move(new_grid, (move[0], move[1], move[2], move[3]), PLAYER_L2)
+            eval = minimax(new_grid, depth - 1, True, alpha, beta)
+            min_eval = min(min_eval, eval)
+            beta = min(beta, eval)
+            if beta <= alpha:
+                break  # Prune the branch
+        return min_eval
+
+# AI Move (based on minimax)
+def ai_move(grid):
+    """Make the best move for the AI (L1) using minimax."""
+    best_move = None
+    best_value = float('-inf')
+    legal_moves = generate_legal_moves(grid, PLAYER_L1)  # L1 moves for the AI
+    for move in legal_moves:
+        new_grid = copy.deepcopy(grid)
+        new_grid = apply_move(new_grid, (move[0], move[1], move[2], move[3]), PLAYER_L1)
+        move_value = minimax(new_grid, depth=3, maximizing_player=False, alpha=float('-inf'), beta=float('inf'))
+        if move_value > best_value:
+            best_value = move_value
+            best_move = move
+    return best_move
+
+
+####################
+# Human Move (L1)
+###NEW ADDITION (12/5/'24)
+def move_piece(grid, player, piece_id):
+    """Handle moving an individual L piece for a player."""
+    print(f"\n{player}'s turn to move {piece_id} piece")
+    
+    # Retrieve the starting position of the piece
+    row, col = get_piece_position(grid, piece_id)
+    
+    if (row, col) is None:
+        print(f"Piece {piece_id} not found for player {player}.")
+        return grid
+    
+    legal_moves = generate_legal_moves(grid, player)
+    print("Available moves:", legal_moves)
+    
+    while True:
+        try:
+            row = int(input("Enter row (0-3): "))
+            col = int(input("Enter column (0-3): "))
+            if (row, col) in legal_moves:
+                return apply_move(grid, (row, col), player)
+            else:
+                print("Invalid move. Try again.")
+        except ValueError:
+            print("Please enter valid numbers.")
+
+def get_piece_position(grid, piece_id):
+    """Retrieve the starting position of a piece based on its ID."""
+    piece_mapping = {
+        'L1_1': (0, 0), 'L1_2': (0, 1), 'L1_3': (0, 2), 'L1_4': (0, 3),
+        'L2_1': (1, 0), 'L2_2': (1, 1), 'L2_3': (1, 2), 'L2_4': (1, 3),
+        'L3_1': (2, 0), 'L3_2': (2, 1), 'L3_3': (2, 2), 'L3_4': (2, 3),
+        'L4_1': (3, 0), 'L4_2': (3, 1), 'L4_3': (3, 2), 'L4_4': (3, 3),
+    }
+    
+    return piece_mapping.get(piece_id, None)
+
+def generate_legal_moves(grid, player):
+    """Generate a list of legal moves for the given player."""
+    legal_moves = []
+    # Define the possible moves for an L piece
+    possible_moves = [
+        (1, 0), (-1, 0), (0, 1), (0, -1)  # Move right, left, up, down
+    ]
+    
+    for dr, dc in possible_moves:
+        for row in range(4):  # Assuming a 4x4 grid
+            for col in range(4):
+                if grid[row][col] == player:  # Found the L piece
+                    # Check if a move in this direction stays within the grid bounds
+                    new_row, new_col = row + dr, col + dc
+                    if 0 <= new_row < 4 and 0 <= new_col < 4:  # Ensure the move is within bounds
+                        legal_moves.append((new_row, new_col))
+    
+    return legal_moves
+
+
+# L2's turn (Neutral Piece)
+###NEW ADDITION (12/5/'24)
+####NEEDS MORE WORK
+def move_neutral_piece(grid, player):
+    print(f"\n{player}'s turn to move neutral piece")
+    nuetral = 'N1' if player == PLAYER_L1 else 'N2'
+    positions = find_positions(grid, nuetral)
+
+    while True:
+        try:
+            print("Current position:", positions[0])
+            row = int(input("Enter row (0-3): "))
+            col = int(input("Enter column (0-3): "))
+            if (row, col) in positions:
+                return apply_move(grid, (row, col), nuetral)
+            else:
+                print("Invalid move. Try again.")
+        except ValueError:
+            print("Please enter valid numbers.")
+
+
+# Play the game
+def play_game():
+    """Main function to play the L game."""
+    grid = initialize_board()
+    print("Initial Board:")
+    print_board(grid)
+    
+    mode = input("Choose mode: (1) Human vs Human (2) Human vs AI (3) AI vs AI): ").strip()
+    
+    if mode == '1':  # Human vs Human
+        turn = 1
+        piece_id_mapping = {
+            'L1': ('L1_1', 'L1_2', 'L1_3', 'L1_4'),
+            'L2': ('L2_1', 'L2_2', 'L2_3', 'L2_4'),
+            'L3': ('L3_1', 'L3_2', 'L3_3', 'L3_4'),
+            'L4': ('L4_1', 'L4_2', 'L4_3', 'L4_4'),
+        }
+
+        while not game_over(grid):
+            print(f"\n--- Turn {turn} ---")
+            print_board(grid)
+
+            if turn % 2 == 1:  # Player L1's turn
+                print('')
+                print("L1's turn to move:")
+                piece_id = piece_id_mapping['L1'][turn // 2 - 1]  # Select appropriate piece ID
+                grid = move_piece(grid, PLAYER_L1, piece_id)
+            else:  # Player L2's turn
+                print("L2's turn to move:")
+                piece_id = piece_id_mapping['L2'][turn // 2 - 1]  # Select appropriate piece ID
+                grid = move_piece(grid, PLAYER_L2, piece_id)
+
+            # Perform neutral piece moves after each player move
+            grid = move_neutral_piece(grid, PLAYER_L1, piece_id)
+            grid = move_neutral_piece(grid, PLAYER_L2, piece_id)
+
+            turn += 1
+
+    else:
+        print("Only Human vs Human mode is currently available.")
+    
+    print("Game Over!")
+
+
+if __name__ == "__main__":
+    play_game()
